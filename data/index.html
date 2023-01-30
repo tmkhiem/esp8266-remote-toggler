@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- test spiffs -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/jquery.js"></script>
+    <title>Detonator</title>
+    <style>
+        .off {
+            background-color: rgb(128, 0, 0)
+        }
+
+        .onn {
+            background-color: rgb(0, 131, 0)
+        }
+        button {            
+            padding: 20px;
+            margin: 2px;
+            width: 100%;
+        }        
+        h5 {
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        var connection;
+        var t1 = 0;
+
+        function setText(text) {
+            $('#status').text(text)
+        }
+
+        function connect() {
+            connection = new WebSocket('ws://'+location.hostname+':81', ['arduino']);
+            connection.onopen = function () {
+                connection.send('Connect ' + new Date());
+            };
+
+            connection.onerror = function (error) {
+                setText('WebSocket Error ' + error);
+            };
+
+            connection.onmessage = function (e) {
+                if (e.data.startsWith("pong")) {
+                    var parts = e.data.split('|');
+                    if (parts.length != 2) {
+                        setText('Invalid PONG response!');
+                        return;
+                    }
+                    if (parts[1] == '0')                        
+                        $('body')[0].className = "off";
+
+                    if (parts[1] == '1')                        
+                        $('body')[0].className = "onn";
+
+                    var dt = (performance.now() - t1).toFixed(2);
+                    setText("Latency: " + dt + "ms")
+                }
+            };
+
+            connection.onclose = function () {
+                setText('WebSocket connection closed');
+            };
+        }
+
+        $(document).ready(function () {
+            setInterval(
+                function () {
+                    connection.send('ping');
+                    t1 = performance.now();
+                },
+                100);
+        });
+
+        function Activate() {
+            connection.send('onon')
+        }
+
+        function Deactivate() {
+            connection.send('offf')
+        }
+
+        connect();
+
+    </script>
+
+    <button onclick="Activate()">Activate</button>
+    <br />
+    <button onclick="Deactivate()">Deactivate</button>
+    <br />
+    <h5 id="status"></h5>
+</body>
+
+</html>
